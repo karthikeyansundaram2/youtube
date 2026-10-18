@@ -130,12 +130,95 @@ ImprovedTube.playbackSpeed = function (newSpeed) {
 	return newSpeed;
 };
 /*------------------------------------------------------------------------------
+PER CHANNEL PERMANENT PLAYBACK SPEED	// #4400
+--------------------------------------------------------------------------------
+	Rules are kept as plain text, one per line: "<channel> = <speed>", where
+	<channel> is a display name, a @handle, a channel ID or a channel URL and
+	<speed> is either a multiplier ("1.5") or a percentage ("150%").
+------------------------------------------------------------------------------*/
+// normalizes anything naming a channel (name, @handle, ID, URL) into one comparable key
+ImprovedTube.playbackSpeedChannelKey = function (channel) {
+	if (!this.isset(channel)) return '';
+
+	const key = String(channel).trim();
+
+	return (key.match(this.regex.channel)?.groups?.name || key).replace(/^@/, '').trim().toLowerCase();
+};
+
+ImprovedTube.playbackSpeedChannelRules = function () {
+	const raw = typeof this.storage.player_playback_speed_channels === 'string' ? this.storage.player_playback_speed_channels : '';
+
+	// reparsing only when the user edited the rules, this runs on every video/time update
+	if (this.playbackSpeedChannelRulesCache?.raw === raw) return this.playbackSpeedChannelRulesCache.rules;
+
+	const rules = new Map();
+
+	for (const line of raw.split('\n')) {
+		const rule = line.trim();
+
+		if (!rule || rule.startsWith('#') || rule.startsWith('//')) continue;
+
+		// last separator wins, so channel names and URLs may contain ':' themselves
+		const separator = Math.max(rule.lastIndexOf('='), rule.lastIndexOf(':'));
+
+		if (separator === -1) { console.log('PerChannelSpeed: skipping rule without "=" separator: ' + rule); continue; }
+
+		const channel = this.playbackSpeedChannelKey(rule.slice(0, separator)),
+			value = rule.slice(separator + 1).trim().replace(',', '.'),
+			speed = Number((parseFloat(value) / (value.endsWith('%') ? 100 : 1)).toFixed(2));
+
+		if (!channel || !isFinite(speed) || speed < 0.0625 || speed > 16) { console.log('PerChannelSpeed: skipping invalid rule: ' + rule); continue; }
+
+		rules.set(channel, speed);
+	}
+
+	this.playbackSpeedChannelRulesCache = { raw: raw, rules: rules };
+
+	return rules;
+};
+
+// every name/handle/ID the current video's channel is known by
+ImprovedTube.playbackSpeedChannelIdentifiers = function () {
+	const identifiers = new Set(),
+		add = (channel) => { const key = this.playbackSpeedChannelKey(channel); if (key) identifiers.add(key); };
+
+	add(this.elements.player?.getVideoData?.()?.author);
+	add(this.elements.yt_channel_link?.getAttribute('href'));
+	add(document.querySelector('ytd-channel-name a, #upload-info a, #owner a, ytd-reel-player-header-renderer a, .ytp-title-channel a')?.getAttribute('href'));
+	add(document.querySelector('[itemprop="author"] [itemprop="name"]')?.getAttribute('content'));
+	add(document.querySelector('[itemprop="author"] [itemprop="url"]')?.getAttribute('href'));
+	add(document.querySelector('meta[itemprop="channelId"]')?.getAttribute('content'));
+
+	return identifiers;
+};
+
+// speed the user assigned to the current channel, undefined when no rule matches
+ImprovedTube.playbackSpeedForChannel = function () {
+	const rules = this.playbackSpeedChannelRules();
+
+	if (!rules.size) return undefined;
+
+	for (const identifier of this.playbackSpeedChannelIdentifiers()) {
+		if (rules.has(identifier)) return rules.get(identifier);
+	}
+
+	return undefined;
+};
+
+// permanent speed to use here: the current channel's own speed, else the global one
+ImprovedTube.playbackSpeedSetting = function () {
+	const channelSpeed = this.playbackSpeedForChannel();
+
+	return this.isset(channelSpeed) ? channelSpeed : this.storage.player_playback_speed;
+};
+/*------------------------------------------------------------------------------
 PERMANENT PLAYBACK SPEED
 ------------------------------------------------------------------------------*/
 ImprovedTube.playerPlaybackSpeed = function () { if (this.storage.player_forced_playback_speed === true) {
 	var player = this.elements.player; if (!player) return;
 	var video = this.elements.video || player.querySelector('video');
-	option = this.storage.player_playback_speed;
+	var channelSpeed = this.playbackSpeedForChannel();	// #4400 per channel speed overrides the global one
+	option = this.isset(channelSpeed) ? channelSpeed : this.storage.player_playback_speed;
 	if (this.isset(option) === false) { option = 1; }
 	else if ( option !== 1 ) {
 		const speed = video?.playbackRate ? Number(video.playbackRate.toFixed(2)) : (player?.getPlaybackRate ? Number(player.getPlaybackRate().toFixed(2)) : null);
