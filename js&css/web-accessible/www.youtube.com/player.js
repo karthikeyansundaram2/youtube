@@ -1,4 +1,36 @@
 /*------------------------------------------------------------------------------
+RETRY PLAYER ACTION
+
+On SPA navigations `yt-navigate-finish` can fire before the player has
+populated its internal state (caption tracklist, audio tracks), so a
+player-dependent setting applied once at navigation time is silently dropped.
+Retry with a growing delay until the player can actually answer. #4407
+------------------------------------------------------------------------------*/
+ImprovedTube.retryPlayerAction = function (actionCallback, attempt = 1, maxAttempts = 6, delayBase = 400) {
+	const navigatedUrl = this.video_url,
+		player = this.elements.player;
+
+	// Which part of the player API has to be live is feature specific, so the
+	// callback decides and reports back:
+	//   true    -> applied, stop retrying
+	//   'stop'  -> player is ready but the action cannot succeed, stop retrying
+	//   falsy   -> player not ready yet, retry
+	if (player) {
+		const result = actionCallback(player);
+
+		if (result === true || result === 'stop') { return; }
+	}
+
+	if (attempt < maxAttempts) {
+		setTimeout(() => {
+			// Another navigation took over; this retry belongs to a video that is gone.
+			if (this.video_url !== navigatedUrl) { return; }
+
+			this.retryPlayerAction(actionCallback, attempt + 1, maxAttempts, delayBase);
+		}, delayBase * attempt);
+	}
+};
+/*------------------------------------------------------------------------------
 FORCED PLAY VIDEO FROM THE BEGINNING
 ------------------------------------------------------------------------------*/
 ImprovedTube.forcedPlayVideoFromTheBeginning = function () {
@@ -309,20 +341,30 @@ ImprovedTube.playerSubtitles = function (attempt = 0) {
 SUBTITLES LANGUAGE
 ------------------------------------------------------------------------------*/
 ImprovedTube.subtitlesLanguage = function () {
-	const option = this.storage.subtitles_language,
-		player = this.elements.player;
-	let subtitlesState;
+	const option = this.storage.subtitles_language;
 
-	if (option && player && player.getOption && player.setOption && player.isSubtitlesOn && player.toggleSubtitles) {
-		const matchedTrack = player.getOption('captions', 'tracklist', {includeAsr: true})?.find(track => track.languageCode.includes(option) && (!track.vss_id.includes("a.") || this.storage.auto_generate));
+	if (!option) { return; }
 
-		if (matchedTrack) {
-			subtitlesState = player.isSubtitlesOn();
-			player.setOption('captions', 'track', matchedTrack);
-			// setOption forces Subtitles ON, restore state from before calling it.
-			if (!subtitlesState) { player.toggleSubtitles(); }
-		}
-	}
+	this.retryPlayerAction((player) => {
+		if (!player.getOption || !player.setOption || !player.isSubtitlesOn || !player.toggleSubtitles) { return false; }
+
+		const tracklist = player.getOption('captions', 'tracklist', {includeAsr: true});
+
+		// A missing/empty tracklist means the caption data has not arrived yet.
+		if (!tracklist || tracklist.length === 0) { return false; }
+
+		const matchedTrack = tracklist.find(track => track.languageCode.includes(option) && (!track.vss_id.includes("a.") || this.storage.auto_generate));
+
+		// The player is ready, this video simply has no track for the chosen language.
+		if (!matchedTrack) { return 'stop'; }
+
+		const subtitlesState = player.isSubtitlesOn();
+
+		player.setOption('captions', 'track', matchedTrack);
+		// setOption forces Subtitles ON, restore state from before calling it.
+		if (!subtitlesState) { player.toggleSubtitles(); }
+		return true;
+	});
 };
 /*------------------------------------------------------------------------------
 SUBTITLES FONT FAMILY
@@ -2403,8 +2445,19 @@ ImprovedTube.disableAutoDubbing = function () {
 		this.autoDubbingGuard.enforce();
 	};
 
-	this.selectPermittedAudioTrack(this.elements.player);
-	this.enforceAutoDubbingPolicy();
+	// The audio tracklist is populated asynchronously, so right after an SPA
+	// navigation there can be nothing to choose from yet. Retry until the
+	// player can report its tracks. #4407
+	this.retryPlayerAction((player) => {
+		// The setting was turned off while a retry was still pending.
+		if (this.storage.disable_auto_dubbing !== true) { return 'stop'; }
+
+		if (!player.getAvailableAudioTracks?.()?.length) { return false; }
+
+		this.selectPermittedAudioTrack(player);
+		this.enforceAutoDubbingPolicy();
+		return true;
+	});
 };
 
 /*------------------------------------------------------------------------------

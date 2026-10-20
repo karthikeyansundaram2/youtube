@@ -9,12 +9,16 @@ function loadDubbingPolicy(context) {
 	);
 	const start = source.indexOf('ImprovedTube.getAudioTrackInfo = function (track) {');
 	const end = source.indexOf('ImprovedTube.jumpToKeyScene = function () {', start);
+	// disableAutoDubbing waits for the player through this shared helper.
+	const helperStart = source.indexOf('ImprovedTube.retryPlayerAction = function (');
+	const helperEnd = source.indexOf('\n};', helperStart);
 
-	if (start < 0 || end < 0) {
+	if (start < 0 || end < 0 || helperStart < 0 || helperEnd < 0) {
 		throw new Error('Dubbing policy source was not found');
 	}
 
 	vm.createContext(context);
+	vm.runInContext(source.slice(helperStart, helperEnd + 3), context);
 	vm.runInContext(source.slice(start, end), context);
 }
 
