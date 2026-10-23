@@ -3165,7 +3165,28 @@ satus.search = function (query, object, callback) {
 
 	query = query.toLowerCase();
 
-	function parse (items) {
+	// try to match query against localized description, fallback on the raw string
+	function matches (string) {
+		return (satus.locale.data[string] ? satus.locale.data[string] : string).toLowerCase().includes(query);
+	}
+
+	// sections print their title as a subheading above their content, so the
+	// settings they hold have to be searchable by that subheading too
+	function subheadingOf (item, inherited) {
+		if (item.component === 'section') {
+			return satus.isString(item.title) ? item.title : inherited;
+		}
+
+		// any other component (a button opening a submenu, for instance)
+		// starts a new context, so the subheading doesn't leak into it
+		if (item.component) {
+			return undefined;
+		}
+
+		return inherited;
+	}
+
+	function parse (items, subheading) {
 		threads++;
 
 		for (const [key, item] of Object.entries(items)) {
@@ -3175,17 +3196,20 @@ satus.search = function (query, object, callback) {
 					&& included.includes(item.component)
 					// only pass buttons whose parents are variant: 'card' or special case 'appearance' (this one abuses variant tag for CSS)
 					&& (item.component != 'button' || item.parentObject?.variant == "card" || item.parentObject?.variant == "appearance")
-					// try to match query against localized description, fallback on component name
-					&& (satus.locale.data[item.text] ? satus.locale.data[item.text] : item.text).toLowerCase().includes(query)) {
+					&& (matches(item.text) || (subheading && matches(subheading)))) {
 					// plop matching results in array - this means we cant have two elements with same name in results
 					results[key] = Object.assign({}, item);
+
+					if (subheading) {
+						results[key].subheading = subheading;
+					}
 				}
 
 				if (satus.isObject(item)
 					&& !satus.isArray(item)
 					&& !satus.isElement(item)
 					&& !satus.isFunction(item)) {
-					parse(item);
+					parse(item, subheadingOf(item, subheading));
 				}
 			}
 		}

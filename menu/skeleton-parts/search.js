@@ -60,6 +60,9 @@ extension.skeleton.header.sectionEnd.search.on.click = {
 							parent = result,
 							category,
 							subcategory,
+							// title of the section the result sits under, printed as a subheading in the menu
+							subheading = result.subheading ? satus.locale.get(result.subheading) : '',
+							group,
 							text;
 
 						while (parent.parentObject && !parent.parentObject.category) {
@@ -92,36 +95,30 @@ extension.skeleton.header.sectionEnd.search.on.click = {
 								text = satus.locale.get(category) + ' > ' + satus.locale.get(subcategory);
 							}
 
-							skeleton[category + subcategory + '_label'] = {
-								component: 'span',
-								class: 'satus-section--label',
-								text: text
-							};
-
-							if (!skeleton[category + subcategory]) {
-								skeleton[category + subcategory] = {
-									component: 'section',
-									variant: 'card'
-								};
-							}
-
-							skeleton[category + subcategory][key] = result;
+							group = category + subcategory + subheading;
 						} else {
-							skeleton[category + '_label'] = {
-								component: 'span',
-								class: 'satus-section--label',
-								text: category
-							};
-
-							if (!skeleton[category]) {
-								skeleton[category] = {
-									component: 'section',
-									variant: 'card'
-								};
-							}
-
-							skeleton[category][key] = result;
+							text = satus.locale.get(category);
+							group = category + subheading;
 						}
+
+						if (subheading && subheading !== text) {
+							text += ' > ' + subheading;
+						}
+
+						skeleton[group + '_label'] = {
+							component: 'span',
+							class: 'satus-section--label',
+							text: text
+						};
+
+						if (!skeleton[group]) {
+							skeleton[group] = {
+								component: 'section',
+								variant: 'card'
+							};
+						}
+
+						skeleton[group][key] = result;
 					}
 
 					if (Object.keys(results).length === 0) {
