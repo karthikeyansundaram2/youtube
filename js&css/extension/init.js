@@ -272,6 +272,23 @@ document.addEventListener('it-message-from-youtube', function () {
 			chrome.storage.local.set({
 				watched: extension.storage.data.watched
 			});
+		} else if (message.action === 'transcript-archive') {
+			if (extension.storage.data.archive_transcripts === true && message.id && message.text) {
+				if (!extension.storage.data.transcript_archive || typeof extension.storage.data.transcript_archive !== 'object') {
+					extension.storage.data.transcript_archive = {};
+				}
+
+				extension.storage.data.transcript_archive[message.id] = {
+					title: message.title,
+					channel: message.channel,
+					when: message.when,
+					text: message.text
+				};
+
+				chrome.storage.local.set({
+					transcript_archive: extension.storage.data.transcript_archive
+				});
+			}
 		} else if (message.action === 'set') {
 			if (message.value) {
 				chrome.storage.local.set({ [message.key]: message.value });

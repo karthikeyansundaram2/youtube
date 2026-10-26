@@ -365,6 +365,11 @@ ImprovedTube.videoPageUpdate = function () {
 			});
 		}
 
+		if (this.storage.archive_transcripts === true && video_id) {
+			// wait for the description / transcript button to be rendered
+			setTimeout(ImprovedTube.archiveTranscript, 5000);
+		}
+
 		this.initialVideoUpdateDone = true;
 
 		ImprovedTube.howLongAgoTheVideoWasUploaded();

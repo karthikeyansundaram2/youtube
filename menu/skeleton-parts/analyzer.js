@@ -188,6 +188,51 @@ extension.skeleton.main.layers.section.analyzer = {
 						}
 					}
 				}
+			},
+			transcriptArchiveSection: {
+				component: 'section',
+				variant: 'card',
+				title: 'transcriptArchive',
+
+				archive_transcripts: {
+					component: 'switch',
+					text: 'archiveTranscriptsOfWatchedVideos'
+				},
+				search_transcripts: {
+					component: 'button',
+					text: 'searchTranscripts',
+					on: {
+						click: {
+							component: 'section',
+							variant: 'card',
+
+							query: {
+								component: 'text-field',
+								storage: false,
+								placeholder: 'search',
+								lineNumbers: false,
+								rows: 1,
+								on: {
+									render: function () {
+										extension.transcriptArchiveSearch(this.parentNode, '');
+									},
+									input: function () {
+										extension.transcriptArchiveSearch(this.parentNode, this.value);
+									}
+								}
+							}
+						}
+					}
+				},
+				clear_transcript_archive: {
+					component: 'button',
+					text: 'clearTranscriptArchive',
+					on: {
+						click: function () {
+							satus.storage.remove('transcript_archive');
+						}
+					}
+				}
 			}
 		}
 	},
@@ -217,4 +262,83 @@ extension.skeleton.main.layers.section.analyzer = {
 		component: 'span',
 		text: 'analyzer'
 	}
+};
+
+// Lists archived transcripts matching the query, most matching lines first
+extension.transcriptArchiveSearch = function (container, query) {
+	var archive = satus.storage.get('transcript_archive'),
+		results = container.querySelector('.it-transcript-archive-results'),
+		matches = [];
+
+	query = (query || '').trim().toLowerCase();
+
+	if (!results) {
+		results = document.createElement('div');
+		results.className = 'it-transcript-archive-results';
+		container.appendChild(results);
+	}
+	results.textContent = '';
+
+	if (satus.isObject(archive)) {
+		for (var id in archive) {
+			var video = archive[id];
+
+			if (!satus.isObject(video) || typeof video.text !== 'string') {
+				continue;
+			}
+
+			var lines = video.text.split('\n').filter(function (line) {
+				return query === '' || line.toLowerCase().indexOf(query) !== -1;
+			});
+			var titleMatch = query !== '' && ((video.title || '') + ' ' + (video.channel || '')).toLowerCase().indexOf(query) !== -1;
+
+			if (query === '' || lines.length > 0 || titleMatch) {
+				matches.push({ id: id, video: video, lines: query === '' ? [] : lines, score: query === '' ? video.when || 0 : lines.length + (titleMatch ? 1 : 0) });
+			}
+		}
+	}
+
+	matches.sort(function (a, b) {
+		return b.score - a.score;
+	});
+
+	if (matches.length === 0) {
+		var empty = document.createElement('span');
+		empty.textContent = satus.locale.get('empty');
+		results.appendChild(empty);
+		return;
+	}
+
+	matches.slice(0, 50).forEach(function (match) {
+		var item = document.createElement('div'),
+			title = document.createElement('a');
+
+		item.style.margin = '8px 0';
+		title.href = 'https://www.youtube.com/watch?v=' + match.id;
+		title.target = '_blank';
+		title.textContent = (match.video.title || match.id) + (match.video.channel ? ' — ' + match.video.channel : '');
+		item.appendChild(title);
+
+		match.lines.slice(0, 5).forEach(function (line) {
+			var time = line.match(/^\[((?:\d+:)?\d+:\d+)\]/),
+				seconds = 0,
+				link = document.createElement('a');
+
+			if (time) {
+				time[1].split(':').forEach(function (part) {
+					seconds = seconds * 60 + Number(part);
+				});
+			}
+
+			link.href = 'https://www.youtube.com/watch?v=' + match.id + (seconds ? '&t=' + seconds + 's' : '');
+			link.target = '_blank';
+			link.textContent = line;
+			link.style.display = 'block';
+			link.style.opacity = '.7';
+			link.style.fontSize = '12px';
+			item.appendChild(link);
+		});
+
+		results.appendChild(item);
+	});
 };

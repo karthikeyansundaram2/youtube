@@ -1940,6 +1940,18 @@
   },
   "smartSpeedAddSelectedLanguage": {
     "message": "➕ Add Selected Language"
+  },
+  "archiveTranscriptsOfWatchedVideos": {
+    "message": "Archive transcripts of watched videos"
+  },
+  "clearTranscriptArchive": {
+    "message": "Clear transcript archive"
+  },
+  "searchTranscripts": {
+    "message": "Search transcripts"
+  },
+  "transcriptArchive": {
+    "message": "Transcript archive"
   }
 }
 

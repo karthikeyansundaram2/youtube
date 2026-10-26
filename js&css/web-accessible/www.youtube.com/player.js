@@ -1098,6 +1098,43 @@ ImprovedTube.downloadTranscript = function (svg, button) {
 	});
 };
 
+/*------------------------------------------------------------------------------
+ARCHIVE TRANSCRIPTS OF WATCHED VIDEOS
+------------------------------------------------------------------------------*/
+ImprovedTube.archiveTranscript = function () {
+	var videoId = ImprovedTube.videoId();
+	var archive = ImprovedTube.storage.transcript_archive;
+
+	if (!videoId || (archive && archive[videoId]) || ImprovedTube.transcriptArchivedId === videoId) {
+		return;
+	}
+	ImprovedTube.transcriptArchivedId = videoId;
+
+	ImprovedTube.getTranscriptSegments(function (segments, openedPanel) {
+		// the user may have navigated to another video meanwhile
+		if (ImprovedTube.videoId() !== videoId) {
+			return;
+		}
+		ImprovedTube.messages.send({
+			action: 'transcript-archive',
+			id: videoId,
+			title: ImprovedTube.videoTitle(),
+			channel: ImprovedTube.elements.yt_channel_name?.__data?.tooltipText || '',
+			when: Date.now(),
+			text: ImprovedTube.transcriptSegmentsToText(segments)
+		});
+		if (openedPanel) {
+			var closeButton = document.querySelector('ytd-engagement-panel-title-header-renderer button[aria-label*="lose"]') ||
+				document.querySelector('ytd-engagement-panel-title-header-renderer button[aria-label*="акрыть"]');
+			if (closeButton) {
+				closeButton.click();
+			}
+		}
+	}, function () {
+		console.log('ImprovedTube: No transcript to archive for this video');
+	});
+};
+
 ImprovedTube.renderSubtitle = function (ctx, captionElements) {
 	if (ctx && captionElements) {
 		captionElements.forEach(function (captionElement, index) {
