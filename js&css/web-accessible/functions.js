@@ -556,6 +556,7 @@ ImprovedTube.playerOnTimeUpdate = function () {
 
 ImprovedTube.playerOnLoadedMetadata = function () {
 	if (ImprovedTube.storage.player_watched_segments === true) {ImprovedTube.watchedSegments.init();}
+	if (ImprovedTube.storage.transcript_archive_enabled === true) {ImprovedTube.transcriptArchive.init();}
 	setTimeout(function () { ImprovedTube.playerSize(); }, 100);
 	setTimeout(function () { if (ImprovedTube.elements.panels) { ImprovedTube.transcript(ImprovedTube.elements.panels); ImprovedTube.chapters(ImprovedTube.elements.panels); } }, 250);
 };

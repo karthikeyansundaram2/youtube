@@ -188,6 +188,105 @@ extension.skeleton.main.layers.section.analyzer = {
 						}
 					}
 				}
+			},
+			transcriptArchiveSection: {
+				component: 'section',
+				variant: 'card',
+				title: 'transcriptArchive',
+
+				transcript_archive_enabled: {
+					component: 'switch',
+					text: 'archiveTranscriptsOfWatchedVideos',
+					value: false
+				},
+				transcript_archive_search: {
+					component: 'text-field',
+					storage: false,
+					placeholder: 'searchTranscripts',
+					lineNumbers: false,
+					rows: 1,
+					on: {
+						input: function () {
+							var query = this.value.trim().toLowerCase(),
+								container = this.parentNode.querySelector('.it-transcript-archive-results');
+
+							if (!container) {
+								container = document.createElement('div');
+								container.className = 'it-transcript-archive-results';
+								this.after(container);
+							}
+
+							container.replaceChildren();
+
+							if (query.length < 2) { return; }
+
+							var archive = satus.storage.get('transcript_archive'),
+								watched = satus.storage.get('watched_segments') || {},
+								results = [];
+
+							if (!satus.isObject(archive)) { archive = {}; }
+
+							for (var id in archive) {
+								var entry = archive[id],
+									played = watched[id] && Array.isArray(watched[id].s) ? watched[id].s : [];
+
+								if (!satus.isObject(entry) || !Array.isArray(entry.s)) { continue; }
+
+								for (var i = 0, l = entry.s.length; i < l; i++) {
+									var start = entry.s[i][0],
+										text = String(entry.s[i][1]);
+
+									if (text.toLowerCase().indexOf(query) === -1) { continue; }
+
+									// Personal ranking: lines inside parts that were actually played come first, then recently watched videos.
+									results.push({
+										id: id,
+										title: entry.t || id,
+										start: start,
+										text: text,
+										played: played.some(function (part) { return start >= part[0] && start <= part[1]; }),
+										updated: entry.u || 0
+									});
+								}
+							}
+
+							results.sort(function (a, b) {
+								return (b.played - a.played) || (b.updated - a.updated) || (a.start - b.start);
+							});
+
+							if (results.length === 0) {
+								var empty = document.createElement('span');
+
+								empty.textContent = satus.locale.get('empty');
+								container.appendChild(empty);
+
+								return;
+							}
+
+							results.slice(0, 50).forEach(function (result) {
+								var link = document.createElement('a'),
+									minutes = Math.floor(result.start / 60),
+									seconds = result.start % 60;
+
+								link.className = 'satus-list__item';
+								link.style.display = 'block';
+								link.href = 'https://www.youtube.com/watch?v=' + encodeURIComponent(result.id) + '&t=' + result.start + 's';
+								link.target = '_blank';
+								link.textContent = (result.played ? '▶ ' : '') + result.title + ' [' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds + '] ' + result.text;
+								container.appendChild(link);
+							});
+						}
+					}
+				},
+				transcript_archive_clear: {
+					component: 'button',
+					text: 'clearTranscriptArchive',
+					on: {
+						click: function () {
+							satus.storage.remove('transcript_archive');
+						}
+					}
+				}
 			}
 		}
 	},

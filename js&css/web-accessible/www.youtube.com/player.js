@@ -1098,6 +1098,127 @@ ImprovedTube.downloadTranscript = function (svg, button) {
 	});
 };
 
+/*------------------------------------------------------------------------------
+TRANSCRIPT ARCHIVE
+--------------------------------------------------------------------------------
+	Keeps the captions of every watched video, so they can be searched later
+	from the menu (Analyzer > Transcript archive).
+	Entries: { t: title, c: channel, u: last watched, s: [[start seconds, text], ...] }
+------------------------------------------------------------------------------*/
+ImprovedTube.transcriptArchive = {
+	STORAGE_KEY: 'transcript_archive',
+	MAX_VIDEOS: 500,
+
+	pending_id: '',
+
+	init: function () {
+		if (ImprovedTube.storage.transcript_archive_enabled !== true || document.documentElement.dataset.pageType !== 'video') { return; }
+
+		var match = ImprovedTube.regex.video_id.exec(location.href),
+			video_id = match ? match[1] : '';
+
+		if (!video_id || video_id === this.pending_id) { return; }
+
+		this.pending_id = video_id;
+
+		var store = ImprovedTube.storage[this.STORAGE_KEY];
+
+		if (store && typeof store === 'object' && store[video_id]) {
+			store[video_id].u = Date.now();
+			this.save(store);
+
+			return;
+		}
+
+		var self = this;
+
+		// The player response may still belong to the previous video right after navigation.
+		setTimeout(function () { self.archive(video_id, 0); }, 3000);
+	},
+
+	archive: function (video_id, attempt) {
+		var self = this,
+			player = document.getElementById('movie_player'),
+			response = player && typeof player.getPlayerResponse === 'function' ? player.getPlayerResponse() : null;
+
+		if (!response || !response.videoDetails || response.videoDetails.videoId !== video_id) {
+			if (attempt < 5) {
+				setTimeout(function () { self.archive(video_id, attempt + 1); }, 2000);
+			}
+
+			return;
+		}
+
+		var tracks = response.captions && response.captions.playerCaptionsTracklistRenderer && response.captions.playerCaptionsTracklistRenderer.captionTracks;
+
+		if (!Array.isArray(tracks) || tracks.length === 0) { return; }
+
+		// Prefer manual captions in the video's spoken language over auto generated ones.
+		var asr = tracks.find(function (track) { return track.kind === 'asr'; }),
+			track = (asr && tracks.find(function (track) { return track.kind !== 'asr' && track.languageCode === asr.languageCode; })) ||
+				tracks.find(function (track) { return track.kind !== 'asr'; }) ||
+				tracks[0];
+
+		if (!track || !track.baseUrl) { return; }
+
+		fetch(track.baseUrl + '&fmt=json3').then(function (res) {
+			return res.ok ? res.json() : null;
+		}).then(function (data) {
+			var segments = [];
+
+			if (!data || !Array.isArray(data.events)) { return; }
+
+			data.events.forEach(function (event) {
+				if (!event.segs) { return; }
+
+				var text = event.segs.map(function (seg) { return seg.utf8 || ''; }).join('').replace(/\s+/g, ' ').trim();
+
+				if (text) {
+					segments.push([Math.floor((event.tStartMs || 0) / 1000), text]);
+				}
+			});
+
+			if (segments.length === 0) { return; }
+
+			var store = ImprovedTube.storage[self.STORAGE_KEY];
+
+			if (!store || typeof store !== 'object') {
+				store = {};
+				ImprovedTube.storage[self.STORAGE_KEY] = store;
+			}
+
+			store[video_id] = {
+				t: response.videoDetails.title || ImprovedTube.videoTitle(),
+				c: response.videoDetails.author || '',
+				u: Date.now(),
+				s: segments
+			};
+
+			self.save(store);
+		}).catch(function (error) {
+			console.error('ImprovedTube: Failed to archive transcript:', error);
+		});
+	},
+
+	save: function (store) {
+		var ids = Object.keys(store);
+
+		if (ids.length > this.MAX_VIDEOS) {
+			ids.sort(function (a, b) { return ((store[a] && store[a].u) || 0) - ((store[b] && store[b].u) || 0); });
+
+			for (var i = 0, l = ids.length - this.MAX_VIDEOS; i < l; i++) {
+				delete store[ids[i]];
+			}
+		}
+
+		ImprovedTube.messages.send({
+			action: 'set',
+			key: this.STORAGE_KEY,
+			value: store
+		});
+	}
+};
+
 ImprovedTube.renderSubtitle = function (ctx, captionElements) {
 	if (ctx && captionElements) {
 		captionElements.forEach(function (captionElement, index) {

@@ -532,6 +532,10 @@ document.addEventListener('it-message-from-extension', function () {
 					ImprovedTube.watchedSegments.init();
 					break
 
+				case 'transcriptArchiveEnabled':
+					ImprovedTube.transcriptArchive.init();
+					break
+
 				case 'playerHideControls':
 					ImprovedTube.playerControls();
 					break
