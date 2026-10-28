@@ -348,8 +348,14 @@
   "copyTranscript": {
     "message": "📋 Copy Transcript"
   },
+  "copyTranscriptTimestamps": {
+    "message": "Copy Transcript with timestamps"
+  },
   "downloadTranscript": {
     "message": "📜📥 Download Transcript (.txt)"
+  },
+  "downloadTranscriptTimestamps": {
+    "message": "Download Transcript with timestamps"
   },
   "FetchingTranscript": {
     "message": "Fetching..."

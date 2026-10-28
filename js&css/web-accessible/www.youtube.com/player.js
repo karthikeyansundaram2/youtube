@@ -885,15 +885,7 @@ ImprovedTube.copyTranscript = function (svg, button) {
 
 		var existingTranscriptSegments = document.querySelectorAll('ytd-transcript-segment-renderer, transcript-segment-view-model');
 		if (existingTranscriptSegments.length > 0) {
-			var transcriptText = '';
-			existingTranscriptSegments.forEach(function (segment) {
-				var textElement = segment.querySelector('.segment-text, .ytAttributedStringHost');
-				if (textElement) {
-					transcriptText += textElement.textContent.trim() + ' ';
-				}
-			});
-
-			transcriptText = transcriptText.trim();
+			var transcriptText = ImprovedTube.transcriptCopyText();
 			if (transcriptText) {
 				navigator.clipboard.writeText(transcriptText);
 				button.dataset.tooltip = 'Copied!';
@@ -951,16 +943,7 @@ ImprovedTube.waitForTranscriptAndCopy = function (svg, button) {
 		if (transcriptSegments.length > 0) {
 			clearInterval(checkInterval);
 
-			var transcriptText = '';
-
-			transcriptSegments.forEach(function (segment) {
-				var textElement = segment.querySelector('.segment-text, .ytAttributedStringHost');
-				if (textElement) {
-					transcriptText += textElement.textContent.trim() + ' ';
-				}
-			});
-
-			transcriptText = transcriptText.trim();
+			var transcriptText = ImprovedTube.transcriptCopyText();
 
 			if (transcriptText) {
 				navigator.clipboard.writeText(transcriptText);
@@ -990,10 +973,20 @@ ImprovedTube.waitForTranscriptAndCopy = function (svg, button) {
 	}, 250);
 };
 
-ImprovedTube.transcriptSegmentsToText = function (segments) {
+ImprovedTube.transcriptSegmentsToText = function (segments, withTimestamps) {
+	if (withTimestamps === false) {
+		return segments.map(function (segment) {
+			return segment.text;
+		}).join(' ');
+	}
 	return segments.map(function (segment) {
 		return segment.time ? '[' + segment.time + '] ' + segment.text : segment.text;
 	}).join('\n');
+};
+
+// Text for the clipboard: plain text by default, one timestamped line per segment when enabled
+ImprovedTube.transcriptCopyText = function () {
+	return ImprovedTube.transcriptSegmentsToText(ImprovedTube.readTranscriptSegments(), ImprovedTube.storage.copy_transcript_timestamps === true);
 };
 
 ImprovedTube.transcriptFileName = function (videoId, title) {
@@ -1077,7 +1070,7 @@ ImprovedTube.downloadTranscript = function (svg, button) {
 
 	ImprovedTube.getTranscriptSegments(function (segments, openedPanel) {
 		var a = document.createElement('a');
-		a.href = URL.createObjectURL(new Blob([ImprovedTube.transcriptSegmentsToText(segments)], {type: 'text/plain;charset=utf-8'}));
+		a.href = URL.createObjectURL(new Blob([ImprovedTube.transcriptSegmentsToText(segments, ImprovedTube.storage.download_transcript_timestamps !== false)], {type: 'text/plain;charset=utf-8'}));
 		a.download = ImprovedTube.transcriptFileName(ImprovedTube.videoId(), ImprovedTube.videoTitle());
 		a.click();
 		setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
