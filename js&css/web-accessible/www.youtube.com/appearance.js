@@ -65,23 +65,51 @@ ImprovedTube.playerSize = function () {
 /*------------------------------------------------------------------------------
  FORCED THEATER MODE
 ------------------------------------------------------------------------------*/
-ImprovedTube.forcedTheaterMode = function (attempt) {
-	if (ImprovedTube.storage.forced_theater_mode === true && ImprovedTube.elements.ytd_watch && ImprovedTube.elements.player) {
-		var button = ImprovedTube.elements.player.querySelector("button.ytp-size-button");
-		var theater = ImprovedTube.elements.ytd_watch.theater === true || ImprovedTube.elements.ytd_watch.hasAttribute('theater');
+// Resolved from the live element rather than a cached one: YouTube reuses
+// ytd-watch-flexy across navigations but sets `theater` asynchronously, so a
+// value read before the player settled is not to be trusted. #4431
+ImprovedTube.isTheaterMode = function () {
+	var ytd_watch = document.querySelector('ytd-watch-flexy') || this.elements.ytd_watch;
 
-		if (button && theater === false) {
-			document.cookie = "wide=1;domain=.youtube.com;path=/";
-			//     ImprovedTube.elements.ytd_watch.theater = true;
-			setTimeout(function () {
-				button.click();
-			}, 100);
-		} else if (theater === false && (attempt || 0) < 10) {
-			setTimeout(function () {
-				ImprovedTube.forcedTheaterMode((attempt || 0) + 1);
-			}, 250);
-		}
-	}
+	return !!ytd_watch && (ytd_watch.theater === true || ytd_watch.hasAttribute('theater'));
+};
+
+// The size button only ever *toggles*, so every click has to be preceded by a
+// fresh state read. Reading it once up front and clicking 100ms later turned
+// theater mode back off whenever YouTube had restored it from its own `wide`
+// cookie in the meantime - which is what made every other video open windowed.
+ImprovedTube.forcedTheaterMode = function (attempt) {
+	if (ImprovedTube.storage.forced_theater_mode !== true || !ImprovedTube.elements.ytd_watch || !ImprovedTube.elements.player) { return; }
+
+	var attempts = attempt || 0,
+		retry = function () {
+			if (attempts < 10) {
+				setTimeout(function () {
+					ImprovedTube.forcedTheaterMode(attempts + 1);
+				}, 250);
+			}
+		};
+
+	if (ImprovedTube.isTheaterMode()) { return; }
+
+	var button = ImprovedTube.elements.player.querySelector("button.ytp-size-button");
+
+	if (!button) { retry(); return; }
+
+	// No `wide` cookie is written here on purpose. YouTube persists the theater
+	// preference itself when the size button is clicked; writing our own copy
+	// only risked a second, differently scoped `wide` cookie shadowing
+	// YouTube's, which is what stopped the preference from being remembered at
+	// all - even for users who never enabled this feature. #4431
+	setTimeout(function () {
+		if (ImprovedTube.isTheaterMode()) { return; }
+
+		button.click();
+
+		// Verify the click took effect; the player can swallow it while it is
+		// still initialising.
+		retry();
+	}, 100);
 };
 
 /*------------------------------------------------------------------------------

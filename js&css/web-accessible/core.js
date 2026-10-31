@@ -324,11 +324,17 @@ document.addEventListener('it-message-from-extension', function () {
 					break
 
 				case 'forcedTheaterMode':
-					if (ImprovedTube.storage.forced_theater_mode === false && ImprovedTube.elements.ytd_watch && ImprovedTube.elements.player) {
+					if (ImprovedTube.storage.forced_theater_mode === true) {
+						ImprovedTube.forcedTheaterMode();
+					} else if (ImprovedTube.storage.forced_theater_mode === false && ImprovedTube.elements.ytd_watch && ImprovedTube.elements.player) {
 						const button = ImprovedTube.elements.player.querySelector("button.ytp-size-button");
-						if (button && ImprovedTube.elements.ytd_watch.theater === true) {
-							ImprovedTube.elements.ytd_watch.theater = false;
-							setTimeout(function () { button.click(); }, 100);
+						// Assigning `theater = false` already leaves theater mode, so the
+						// click that followed used to toggle it right back on. Let the
+						// click alone do it, and only if we are still in theater mode. #4431
+						if (button && ImprovedTube.isTheaterMode()) {
+							setTimeout(function () {
+								if (ImprovedTube.isTheaterMode()) { button.click(); }
+							}, 100);
 						}
 					}
 					break
