@@ -65,23 +65,41 @@ ImprovedTube.playerSize = function () {
 /*------------------------------------------------------------------------------
  FORCED THEATER MODE
 ------------------------------------------------------------------------------*/
-ImprovedTube.forcedTheaterMode = function (attempt) {
-	if (ImprovedTube.storage.forced_theater_mode === true && ImprovedTube.elements.ytd_watch && ImprovedTube.elements.player) {
-		var button = ImprovedTube.elements.player.querySelector("button.ytp-size-button");
-		var theater = ImprovedTube.elements.ytd_watch.theater === true || ImprovedTube.elements.ytd_watch.hasAttribute('theater');
+ImprovedTube.isTheaterMode = function () {
+	var watch = this.elements.ytd_watch || document.querySelector('ytd-watch-flexy');
 
-		if (button && theater === false) {
-			document.cookie = "wide=1;domain=.youtube.com;path=/";
-			//     ImprovedTube.elements.ytd_watch.theater = true;
-			setTimeout(function () {
-				button.click();
-			}, 100);
-		} else if (theater === false && (attempt || 0) < 10) {
-			setTimeout(function () {
-				ImprovedTube.forcedTheaterMode((attempt || 0) + 1);
-			}, 250);
-		}
+	return !!watch && (watch.theater === true || watch.hasAttribute('theater'));
+};
+
+ImprovedTube.forcedTheaterMode = function (attempt) {
+	if (ImprovedTube.storage.forced_theater_mode !== true) { return; }
+
+	var attempts = attempt || 0;
+
+	// YouTube restores the theater state itself, asynchronously, on load and on
+	// every SPA navigation. So the state is read right before clicking, never
+	// from an earlier sample: a stale "not theater" reading would make the click
+	// turn YouTube's own theater mode off again (on every other video).
+	if (attempts >= 10 || ImprovedTube.isTheaterMode()) { return; }
+
+	var button = ImprovedTube.elements.player?.querySelector("button.ytp-size-button");
+
+	if (!button) {
+		setTimeout(function () { ImprovedTube.forcedTheaterMode(attempts + 1); }, 250);
+		return;
 	}
+
+	setTimeout(function () {
+		if (ImprovedTube.isTheaterMode()) { return; }
+
+		// Clicking the size button lets YouTube apply and store the preference
+		// itself - writing a "wide" cookie here would only shadow YouTube's own
+		// one and break its theater mode persistence.
+		button.click();
+
+		// Retry only if the click didn't take effect.
+		setTimeout(function () { ImprovedTube.forcedTheaterMode(attempts + 1); }, 500);
+	}, 100);
 };
 
 /*------------------------------------------------------------------------------
