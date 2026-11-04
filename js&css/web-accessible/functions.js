@@ -392,7 +392,7 @@ ImprovedTube.videoPageUpdate = function () {
 		// Initialize large playlist handler for playlist videos
 		// Skip queue-type playlists (WL, RD, etc.) to prevent interference
 		var listId = this.getParam(location.href, 'list');
-		if (listId && listId !== 'WL' && listId !== 'RD' && listId.indexOf('RDAMVM') !== 0 && listId.indexOf('OLAK5uy_') !== 0) {
+		if (listId && listId !== 'WL' && listId !== 'RD' && listId.indexOf('RDAMVM') !== 0 && listId.indexOf('OLAK5uy_') !== 0 && listId.indexOf('TLPQ') !== 0) {
 			ImprovedTube.playlistLargePlaylistHandler();
 		} else {
 			// Cleanup when not on a playlist or on a queue-type playlist
@@ -429,8 +429,13 @@ ImprovedTube.playerOnPlay = function () {
 				/*------------------------------------------------------------------------------
 				AUTOPLAY DISABLE  player || playlist || channel trailer
 				------------------------------------------------------------------------------*/
+				// "Add to queue" playlists have no `list=` param, so they have to be
+				// detected separately or the playlist autoplay option skips them (#4447)
+				var hasListParam = location.href.includes('list=')
+					|| (typeof ImprovedTube.isQueuePlaylist === 'function' && ImprovedTube.isQueuePlaylist());
+
 				if ((((ImprovedTube.storage.player_autoplay_disable === true && !location.href.includes('list='))
-					  ||(ImprovedTube.storage.playlist_autoplay === false && location.href.includes('list=')))
+					  ||(ImprovedTube.storage.playlist_autoplay === false && hasListParam))
 					 && location.href.includes('/watch?') // #1703 // (=video page)
 					 )||(ImprovedTube.storage.channel_trailer_autoplay === false && ImprovedTube.regex.channel.test(location.href)
 						 && !/\/(videos|shorts|playlists|community|channels|about|posts|streams|releases)$/.test(location.href))

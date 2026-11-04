@@ -4,16 +4,52 @@
 /*------------------------------------------------------------------------------
 4.5.1 UP NEXT AUTOPLAY
 ------------------------------------------------------------------------------*/
+// "Add to queue" builds a temporary playlist that YouTube mostly keeps local:
+// the watch URL has no `list=` param (or only carries a temporary "TLPQ…" id),
+// yet the queue panel and `ytd-watch-flexy.playlistData` behave like a regular
+// playlist. Options that only looked for `list=` therefore never applied to a
+// queue, so it kept jumping to the next video. (#4447)
+ImprovedTube.isQueuePlaylist = function () {
+	var listId = this.getParam(location.href, 'list');
+
+	// Explicit list ids: only YouTube's temporary queue lists count as a queue.
+	if (listId) return listId.indexOf('TLPQ') === 0;
+
+	if (!location.href.includes('/watch?')) return false;
+
+	// No list id: a visible queue panel plus playlist data is the only marker.
+	var playlistData = this.elements.ytd_watch?.playlistData;
+
+	return !!(playlistData && playlistData.totalVideos > 1
+		&& document.querySelector('ytd-playlist-panel-renderer'));
+};
+
 ImprovedTube.playlistUpNextAutoplay = function () {
-	if (this.storage.playlist_up_next_autoplay === false) {
-		const playlistData = this.elements.ytd_watch?.playlistData;
-		if (this.getParam(location.href, 'list') && playlistData
-			&& playlistData.currentIndex
-			&& playlistData.totalVideos
-			&& playlistData.localCurrentIndex) {
-			// Prevent autoplay by telling YouTube we're at the end of the playlist
-			playlistData.currentIndex = playlistData.totalVideos;
-		}
+	if (this.storage.playlist_up_next_autoplay !== false) return;
+
+	const playlistData = this.elements.ytd_watch?.playlistData;
+
+	if (!playlistData || !playlistData.totalVideos) return;
+	if (!this.getParam(location.href, 'list') && !this.isQueuePlaylist()) return;
+
+	// `0` is a valid index (first entry of a playlist/queue), so these have to be
+	// checked as numbers instead of for truthiness — otherwise the very first
+	// video of a two-item queue still autoplayed the next one.
+	var isIndex = function (value) {
+		return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+	};
+
+	if (!isIndex(playlistData.currentIndex) || !isIndex(playlistData.localCurrentIndex)) return;
+
+	// Prevent autoplay by telling YouTube we're at the end of the playlist
+	playlistData.currentIndex = playlistData.totalVideos;
+
+	// Queues are advanced by the playlist manager, which keeps its own copy of
+	// the index, so it needs to be moved to the end as well.
+	const playlistManager = document.querySelector('yt-playlist-manager');
+	if (playlistManager && playlistManager.autoplayData
+		&& isIndex(playlistManager.autoplayData.currentIndex)) {
+		playlistManager.autoplayData.currentIndex = playlistData.totalVideos;
 	}
 };
 
@@ -22,7 +58,8 @@ ImprovedTube.playlistUpNextAutoplay = function () {
 // currentIndex and localCurrentIndex to desync at chunk boundaries.
 // This handler keeps them in sync so autoplay continues working.
 // Only runs when playlist_up_next_autoplay is NOT disabled.
-// ⚠️ Skip queue-type playlists (WL=Watch Later, RD=Radio, OLAK5uy_=auto-mix)
+// ⚠️ Skip queue-type playlists (WL=Watch Later, RD=Radio, OLAK5uy_=auto-mix,
+// TLPQ=temporary "Add to queue" list)
 // to prevent interference with YouTube's queue autoplay behavior.
 ImprovedTube.playlistLargePlaylistHandler = function() {
 	if (!this.getParam(location.href, 'list')) return;
@@ -30,7 +67,7 @@ ImprovedTube.playlistLargePlaylistHandler = function() {
 	// Skip queue-type playlists — these are not regular user playlists
 	// and the index sync logic can interfere with YouTube's queue autoplay
 	var listId = this.getParam(location.href, 'list');
-	if (listId === 'WL' || listId === 'RD' || listId.indexOf('RDAMVM') === 0 || listId.indexOf('OLAK5uy_') === 0) {
+	if (listId === 'WL' || listId === 'RD' || listId.indexOf('RDAMVM') === 0 || listId.indexOf('OLAK5uy_') === 0 || listId.indexOf('TLPQ') === 0) {
 		this.cleanupPlaylistHandlers();
 		return;
 	}
