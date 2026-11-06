@@ -145,6 +145,7 @@ function getLocale (language, callback) {
 # CONTEXT MENU
 --------------------------------------------------------------*/
 function updateContextMenu (language) {
+	if (!chrome.contextMenus) return; // not available on Firefox for Android
 	if (!language || language === 'default') language = chrome.i18n.getUILanguage();
 	getLocale(language, function (response) {
 		const items = [
@@ -167,7 +168,7 @@ function updateContextMenu (language) {
 	});
 }
 
-chrome.contextMenus.onClicked.addListener(function (info) {
+chrome.contextMenus?.onClicked.addListener(function (info) {
 	const isFirefox = chrome.runtime.getURL('').startsWith('moz-extension://');
 	const links = [
 		'https://www.improvedtube.com/donate',
@@ -204,7 +205,7 @@ let tabConnected = {},
 	windowId;
 
 function tabPrune (callback) {
-	chrome.tabs.query({ url: 'https://www.youtube.com/*' }).then(function (tabs) {
+	chrome.tabs.query({ url: ['https://www.youtube.com/*', 'https://m.youtube.com/*'] }).then(function (tabs) {
 		let tabIds = [];
 		for (let tab of tabs) {
 			if (!tab.discarded && tabConnected[tab.id]) {
@@ -241,7 +242,7 @@ chrome.tabs.onActivated.addListener(function (activeInfo) {
 		}
 	});
 });
-chrome.windows.onFocusChanged.addListener(function (wId) {
+chrome.windows?.onFocusChanged.addListener(function (wId) { // not available on Firefox for Android
 	windowId = wId;
 	//console.log('onFocusChanged', windowId, tabPrev, tab);
 	tabPrune(function () {
@@ -377,7 +378,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 		case 'download':
 			chrome.permissions.request({
 				permissions: ['downloads'],
-				origins: ['https://www.youtube.com/*']
+				origins: ['https://www.youtube.com/*', 'https://m.youtube.com/*']
 			}, function (granted) {
 				if (granted) {
 					try {

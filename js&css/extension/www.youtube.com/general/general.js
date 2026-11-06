@@ -1205,7 +1205,7 @@ extension.features.hideWatchLater = function () {
 		if (isFetching || watchLaterIds.size > 0) return;
 		isFetching = true;
 
-		fetch('https://www.youtube.com/playlist?list=WL')
+		fetch(location.origin + '/playlist?list=WL')
 			.then(res => res.text())
 			.then(text => {
 				const matches = text.match(/"videoId":"(.*?)"/g);

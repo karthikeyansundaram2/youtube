@@ -263,8 +263,8 @@ if (title && title !== 'YouTube') {
 			 DATA.videoID = ImprovedTube.videoId() || false;     // console.log("SPEED: TITLE:" + ImprovedTube.videoTitle() + DATA.title);
 			 if ( DATA.title && (DATA.title === ImprovedTube.videoTitle() || DATA.title.replace(/\s{2,}/g, ' ') === ImprovedTube.videoTitle()) )
 				{ keywords = document.querySelector('meta[name="keywords"]')?.content || ''; ImprovedTube.speedException(); }
-				else { keywords = ''; (async function () { try { const response = await fetch(`https://www.youtube.com/watch?v=${DATA.videoID}`);
-					console.log("loading the html source:" + `https://www.youtube.com/watch?v=${DATA.videoID}`);
+				else { keywords = ''; (async function () { try { const response = await fetch(`${location.origin}/watch?v=${DATA.videoID}`);
+					console.log("loading the html source:" + `${location.origin}/watch?v=${DATA.videoID}`);
 					const htmlContent = await response.text();
 					const metaRegex = /<meta[^>]+(?:name|itemprop)=["'](keywords|genre|duration|title)["'][^>]+content=["']([^"']+)["'][^>]*>/gi;
 					let match; while ((match = metaRegex.exec(htmlContent)) !== null) { // console.log(match);
@@ -3255,8 +3255,8 @@ if (title && title !== 'YouTube') {
 			 if ( (DATA.title === ImprovedTube.videoTitle() || DATA.title.replace(/\s{2,}/g, ' ') === ImprovedTube.videoTitle())
 				   && ((history && history.length === 1) || !history?.state?.endpoint?.watchEndpoint))
 				   { ImprovedTube.mostReplayed(); }
-				else { keywords = ''; (async function () { try { const response = await fetch(`https://www.youtube.com/watch?v=${DATA.videoID}`);
-					console.log("loading the html source:" + `https://www.youtube.com/watch?v=${DATA.videoID}`);
+				else { keywords = ''; (async function () { try { const response = await fetch(`${location.origin}/watch?v=${DATA.videoID}`);
+					console.log("loading the html source:" + `${location.origin}/watch?v=${DATA.videoID}`);
 					const htmlContent = await response.text();
 					DATA.ytInitialData = htmlContent.match(/var ytInitialData = ({.*?});/s);
 					if (DATA.ytInitialData) { ImprovedTube.mostReplayed(); }
@@ -3796,7 +3796,7 @@ SMART SPEED ENGINE
         /** Tier 4 (network, last resort): raw watch-page HTML scrape. */
         async fromWatchPageFetch(videoId, signal) {
             try {
-                const res = await fetchWithTimeout(`https://www.youtube.com/watch?v=${videoId}`, {
+                const res = await fetchWithTimeout(`${location.origin}/watch?v=${videoId}`, {
                     credentials: 'omit', timeoutMs: 8000, signal
                 });
                 const text = await res.text();

@@ -225,6 +225,18 @@ ImprovedTube.init = function () {
 	ImprovedTube.playerAutoContinueWatching();
 };
 
+// m.youtube.com has no yt-navigate-* / yt-page-data-updated events, only state-navigate* on window.
+// Bubbling re-dispatch from document reaches listeners on both document and window.
+if (location.hostname === 'm.youtube.com') {
+	window.addEventListener('state-navigatestart', function () {
+		document.dispatchEvent(new CustomEvent('yt-navigate-start', { bubbles: true }));
+	});
+	window.addEventListener('state-navigateend', function () {
+		document.dispatchEvent(new CustomEvent('yt-navigate-finish', { bubbles: true }));
+		document.dispatchEvent(new CustomEvent('yt-page-data-updated', { bubbles: true }));
+	});
+}
+
 document.addEventListener('yt-navigate-finish', function () {
 	/* 			if (name === 'META') {			   //<META> infos are not updated when clicking related videos...
 				if(node.getAttribute('name')) {
@@ -289,7 +301,7 @@ document.addEventListener('yt-navigate-finish', function () {
 	if (document.documentElement.dataset.pageType === 'home' && ImprovedTube.storage.youtube_home_page === 'search') {
 		document.querySelector('body').style.setProperty('visibility', 'visible', 'important');
 		ImprovedTube.shortcutGoToSearchBox();
-		document.querySelector('#search').click();
+		document.querySelector('#search')?.click();
 	} else if (document.documentElement.dataset.pageType === 'channel') {
 		ImprovedTube.channelPlayAllButton();
 	}
@@ -311,7 +323,7 @@ window.addEventListener('load', function () {
 	if (document.documentElement.dataset.pageType === 'home' && ImprovedTube.storage.youtube_home_page === 'search') {
 		document.querySelector('body').style.setProperty('visibility', 'visible', 'important');
 		ImprovedTube.shortcutGoToSearchBox();
-		document.querySelector('#search').click();
+		document.querySelector('#search')?.click();
 	}
 	//document.querySelector('#content, #guide[opened]').remove() }
 });
