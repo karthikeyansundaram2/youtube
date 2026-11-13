@@ -504,11 +504,29 @@ html[data-page-type=video][it-player-size='full_window'] {
 	--it-player-size: 100vh;
 }
 
+html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy:not([fullscreen]) {
+	/* newer YouTube layouts (logged-in experiments) cap the player with these variables */
+	--ytd-watch-flexy-max-player-height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
+	--ytd-watch-flexy-min-player-height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
+}
+
 /*outdated line?*/ html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy[theater]:not([fullscreen]) #player-wide-container,
 html[data-page-type=video][it-player-size='fit_to_window'] ytd-watch-flexy[full-bleed-player]:not([fullscreen]) #full-bleed-container.ytd-watch-flexy,
-html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy[full-bleed-player]:not([fullscreen]) #full-bleed-container.ytd-watch-flexy {
+html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy[full-bleed-player]:not([fullscreen]) #full-bleed-container.ytd-watch-flexy,
+html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy[theater]:not([fullscreen]) #full-bleed-container.ytd-watch-flexy {
 	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
+	min-height: 0 !important;
 	max-height: var(--it-player-size, 100vh) !important;
+}
+
+/* YouTube's JS may size the inner player smaller than its container, leaving gaps around the video */
+html[data-page-type=video][it-player-size='full_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([fullscreen]) ytd-player#ytd-player,
+html[data-page-type=video][it-player-size='full_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([fullscreen]) ytd-player #container.ytd-player,
+html[data-page-type=video][it-player-size='full_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([fullscreen]) #movie_player:not(.it-mini-player) {
+	width: 100% !important;
+	height: 100% !important;
+	max-width: none !important;
+	max-height: none !important;
 }
 
 html[data-page-type=video][it-player-size='full_window'] .ytp-fit-cover-video .html5-main-video {
