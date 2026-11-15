@@ -274,6 +274,11 @@ html[it-related-videos='collapsed'] #related > ytd-watch-next-secondary-results-
 	font-weight: 400 !important;
 
 	display: flex !important;
+	visibility: visible !important;
+	position: relative !important;
+	z-index: 1 !important;
+	box-sizing: border-box !important;
+	cursor: pointer !important;
 
 	width: 100% !important;
 	height: 48px !important;
@@ -287,8 +292,7 @@ html[it-related-videos='collapsed'] #related > ytd-watch-next-secondary-results-
 }
 
 html[it-related-videos='collapsed'] #related > ytd-watch-next-secondary-results-renderer > #items:not([it-activated]) > * {
-	visibility: hidden !important;
-	pointer-events: none !important;
+	display: none !important;
 }
 
 /*--------------------------------------------------------------
