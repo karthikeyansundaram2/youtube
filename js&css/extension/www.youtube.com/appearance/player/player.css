@@ -573,45 +573,40 @@ html[data-page-type='video'][it-player-size]:not([it-player-size='do_not_change'
 # THEATER: ON
 --------------------------------------------------------------*/
 
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-theater-container {
-	height: auto !important;
+/* Size the theater containers explicitly instead of relying on YouTube's
+   --ytd-watch-flexy-*-ratio variables / #player-theater-container, which newer
+   YouTube layouts (#full-bleed-container) no longer provide. Without this the
+   player collapsed and only a black/blurred backdrop was shown. #4478 */
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-theater-container,
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #full-bleed-container {
+	width: 100% !important;
+	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0px)) !important;
 	min-height: 0 !important;
-	max-height: unset !important;
-	background: transparent !important;
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container {
-	position: static !important;
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) ytd-player>#container {
-	display: flex !important;
-	justify-content: center !important;
-	align-items: center !important;
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) .html5-video-container {
-	display: flex !important;
-	justify-content: center !important;
-	align-items: center !important;
-}
-
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) video {
-	position: static !important;
-/*	width: auto !important;
-	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
-	*/
 	max-height: none !important;
-	max-width: 100% !important;
-	height: var(--height, 64vh) !important;
-	width: var(--width, 36vw) !important;
+	background: #000 !important;
 }
 
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) #container {
-	--height: calc(var(--it-player-size) - var(--it-header-size));
-	--ratio: calc(var(--ytd-watch-flexy-width-ratio) / var(--ytd-watch-flexy-height-ratio));
-	--width: calc(var(--height) * var(--ratio));
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container,
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container ytd-player,
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container ytd-player > #container,
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container .html5-video-player:not(.it-mini-player),
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container .html5-video-player:not(.it-mini-player) .html5-video-container {
+	width: 100% !important;
+	height: 100% !important;
+	min-height: 0 !important;
+	max-height: none !important;
+	padding-top: 0 !important;
+}
+
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container .html5-video-player:not(.it-mini-player) video {
+	position: absolute !important;
+	top: 0 !important;
+	left: 0 !important;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: none !important;
+	max-height: none !important;
+	object-fit: contain !important;
 }
 
 /*--------------------------------------------------------------
