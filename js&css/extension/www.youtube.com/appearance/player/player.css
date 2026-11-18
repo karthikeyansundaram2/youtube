@@ -507,7 +507,7 @@ html[data-page-type=video][it-player-size='full_window'] {
 /*outdated line?*/ html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy[theater]:not([fullscreen]) #player-wide-container,
 html[data-page-type=video][it-player-size='fit_to_window'] ytd-watch-flexy[full-bleed-player]:not([fullscreen]) #full-bleed-container.ytd-watch-flexy,
 html[data-page-type=video][it-player-size='full_window'] ytd-watch-flexy[full-bleed-player]:not([fullscreen]) #full-bleed-container.ytd-watch-flexy {
-	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
+	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0px)) !important;
 	max-height: var(--it-player-size, 100vh) !important;
 }
 
@@ -570,74 +570,39 @@ html[data-page-type='video'][it-player-size]:not([it-player-size='do_not_change'
 
 
 /*--------------------------------------------------------------
-# THEATER: ON
+# FIT TO WINDOW: player sized to the window, video kept in YouTube's own
+# absolute layout (scaled with object-fit) so it isn't pushed out of /
+# painted under the player's layers. #4478
 --------------------------------------------------------------*/
 
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-theater-container {
-	height: auto !important;
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-theater-container,
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #full-bleed-container {
+	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0px)) !important;
 	min-height: 0 !important;
-	max-height: unset !important;
-	background: transparent !important;
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) #player-container {
-	position: static !important;
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) ytd-player>#container {
-	display: flex !important;
-	justify-content: center !important;
-	align-items: center !important;
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) .html5-video-container {
-	display: flex !important;
-	justify-content: center !important;
-	align-items: center !important;
-}
-
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy[theater]:not([fullscreen]) video {
-	position: static !important;
-/*	width: auto !important;
-	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
-	*/
 	max-height: none !important;
-	max-width: 100% !important;
-	height: var(--height, 64vh) !important;
-	width: var(--width, 36vw) !important;
 }
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) #container {
-	--height: calc(var(--it-player-size) - var(--it-header-size));
-	--ratio: calc(var(--ytd-watch-flexy-width-ratio) / var(--ytd-watch-flexy-height-ratio));
-	--width: calc(var(--height) * var(--ratio));
-}
-
-/*--------------------------------------------------------------
-# THEATER: OFF
---------------------------------------------------------------*/
 
 html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([theater]):not([fullscreen]) #player-container-inner {
-	padding-top: 0 !important;
+	padding-top: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0px)) !important;
 }
 
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([theater]):not([fullscreen]) #player-container {
-	position: static !important;
-}
-
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([theater]):not([fullscreen]) .html5-video-player {
-	width: auto;
-	display: table;
-	margin: auto
-}
-
-html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([theater]):not([fullscreen]) video {
-	position: static !important;
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([fullscreen]) .html5-video-player:not(.it-mini-player) .html5-video-container {
+	position: absolute !important;
+	top: 0 !important;
+	left: 0 !important;
 	width: 100% !important;
-	height: calc(var(--it-player-size, 100vh) - var(--it-header-size, 0)) !important;
+	height: 100% !important;
+}
+
+html[data-page-type='video'][it-player-size='fit_to_window'] ytd-app:not([player-fullscreen_]) ytd-watch-flexy:not([fullscreen]) .html5-video-player:not(.it-mini-player) video {
+	position: absolute !important;
+	top: 0 !important;
+	left: 0 !important;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: none !important;
 	max-height: none !important;
+	object-fit: contain !important;
 }
 
 /*--------------------------------------------------------------
