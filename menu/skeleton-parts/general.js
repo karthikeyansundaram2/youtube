@@ -584,6 +584,9 @@ extension.skeleton.main.layers.section.general = {
 						text: 'Raleway',
 						value: 'Raleway'
 					}, {
+						text: 'Roboto',
+						value: 'Roboto'
+					}, {
 						text: 'Roboto Condensed',
 						value: 'Roboto+Condensed'
 					}, {
