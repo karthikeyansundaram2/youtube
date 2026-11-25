@@ -879,111 +879,34 @@ ImprovedTube.transcriptButtonSelector = 'button[aria-label*="scrip"], button[ari
 										+ 'button[aria-label*="γραφ"], button[aria-label*="přep"], button[aria-label*="átir"], button[aria-label*="avsk"]';
 
 ImprovedTube.copyTranscript = function (svg, button) {
-	try {
-		svg.style.opacity = '1';
-		button.dataset.tooltip = 'FetchingTranscript';
-
-		var existingTranscriptSegments = document.querySelectorAll('ytd-transcript-segment-renderer, transcript-segment-view-model');
-		if (existingTranscriptSegments.length > 0) {
-			var transcriptText = '';
-			existingTranscriptSegments.forEach(function (segment) {
-				var textElement = segment.querySelector('.segment-text, .ytAttributedStringHost');
-				if (textElement) {
-					transcriptText += textElement.textContent.trim() + ' ';
-				}
-			});
-
-			transcriptText = transcriptText.trim();
-			if (transcriptText) {
-				navigator.clipboard.writeText(transcriptText);
-				button.dataset.tooltip = 'Copied!';
-				setTimeout(function () {
-					button.dataset.tooltip = 'CopyTranscript';
-					svg.style.opacity = '.5';
-				}, 1000);
-				return;
-			}
-		}
-		var transcriptButtonSelector = ImprovedTube.transcriptButtonSelector;
-		var transcriptButton = document.querySelector(transcriptButtonSelector) || document.querySelector('ytd-video-description-transcript-section-renderer button');
-
-		if (!transcriptButton) {
-			var moreActionsButton = document.querySelector('#description ytd-text-inline-expander #expand, #description tp-yt-paper-button#expand');
-			if (moreActionsButton && !moreActionsButton.hasAttribute('hidden')) {
-				moreActionsButton.click();
-				setTimeout(function () {
-					transcriptButton = document.querySelector(transcriptButtonSelector) || 	document.querySelector('ytd-video-description-transcript-section-renderer button');
-					if (transcriptButton) {
-						transcriptButton.click();
-						ImprovedTube.waitForTranscriptAndCopy(svg, button);
-					} else {
-						throw new Error('Transcript button not found');
-					}
-				}, 500);
-				return;
-			} else {
-				throw new Error('Transcript not available for this video');
-			}
-		}
-
-		transcriptButton.click();
-		ImprovedTube.waitForTranscriptAndCopy(svg, button);
-
-	} catch (error) {
-		console.error('ImprovedTube: Failed to copy transcript:', error);
-		button.dataset.tooltip = 'TranscriptError';
+	var resetButton = function (delay) {
 		setTimeout(function () {
 			button.dataset.tooltip = 'CopyTranscript';
 			svg.style.opacity = '.5';
-		}, 2000);
-	}
-};
+		}, delay);
+	};
 
-ImprovedTube.waitForTranscriptAndCopy = function (svg, button) {
-	var attempts = 0;
-	var maxAttempts = 20;
+	svg.style.opacity = '1';
+	button.dataset.tooltip = 'FetchingTranscript';
 
-	var checkInterval = setInterval(function () {
-		attempts++;
-
-		var transcriptSegments = document.querySelectorAll('ytd-transcript-segment-renderer, transcript-segment-view-model');
-
-		if (transcriptSegments.length > 0) {
-			clearInterval(checkInterval);
-
-			var transcriptText = '';
-
-			transcriptSegments.forEach(function (segment) {
-				var textElement = segment.querySelector('.segment-text, .ytAttributedStringHost');
-				if (textElement) {
-					transcriptText += textElement.textContent.trim() + ' ';
-				}
-			});
-
-			transcriptText = transcriptText.trim();
-
-			if (transcriptText) {
-				navigator.clipboard.writeText(transcriptText);
-				button.dataset.tooltip = 'Copied!';
-				setTimeout(function () {
-					button.dataset.tooltip = 'CopyTranscript';
-					svg.style.opacity = '.5';
-					// Close transcript panel
-					ImprovedTube.closeTranscriptPanel();
-				}, 1000);
-			} else {
-				throw new Error('Transcript is empty');
-			}
-		} else if (attempts >= maxAttempts) {
-			clearInterval(checkInterval);
-			console.error('ImprovedTube: Timeout waiting for transcript');
+	ImprovedTube.getTranscriptSegments(function (segments, openedPanel) {
+		var transcriptText = segments.map(function (segment) { return segment.text; }).join(' ');
+		navigator.clipboard.writeText(transcriptText).then(function () {
+			button.dataset.tooltip = 'Copied!';
+			resetButton(1000);
+		}, function (error) {
+			console.error('ImprovedTube: Failed to copy transcript:', error);
 			button.dataset.tooltip = 'TranscriptError';
-			setTimeout(function () {
-				button.dataset.tooltip = 'CopyTranscript';
-				svg.style.opacity = '.5';
-			}, 2000);
+			resetButton(2000);
+		});
+		if (openedPanel) {
+			setTimeout(ImprovedTube.closeTranscriptPanel, 1000);
 		}
-	}, 250);
+	}, function () {
+		console.error('ImprovedTube: Transcript not available for this video');
+		button.dataset.tooltip = 'TranscriptError';
+		resetButton(2000);
+	});
 };
 
 ImprovedTube.transcriptSegmentsToText = function (segments) {
@@ -1030,8 +953,21 @@ ImprovedTube.getTranscriptSegments = function (onReady, onError) {
 		return;
 	}
 
+	// Prefer the dedicated "Show transcript" button in the description. The generic aria-label
+	// selector also matches unrelated buttons such as "...description" (de-SCRIP-tion), so skip those.
 	var findTranscriptButton = function () {
-		return document.querySelector(ImprovedTube.transcriptButtonSelector) || document.querySelector('ytd-video-description-transcript-section-renderer button');
+		var button = document.querySelector('ytd-video-description-transcript-section-renderer button');
+		if (button) {
+			return button;
+		}
+		var candidates = document.querySelectorAll(ImprovedTube.transcriptButtonSelector);
+		for (var i = 0; i < candidates.length; i++) {
+			var label = (candidates[i].getAttribute('aria-label') || '').toLowerCase();
+			if (label.indexOf('escrip') === -1 && !candidates[i].closest('.improvedtube-player-button, [id^="it-"]')) {
+				return candidates[i];
+			}
+		}
+		return null;
 	};
 	var waitForSegments = function () {
 		var attempts = 0;
@@ -1041,7 +977,7 @@ ImprovedTube.getTranscriptSegments = function (onReady, onError) {
 			if (found.length > 0) {
 				clearInterval(checkInterval);
 				onReady(found, true);
-			} else if (attempts >= 20) {
+			} else if (attempts >= 60) { // transcripts can take several seconds to load
 				clearInterval(checkInterval);
 				onError();
 			}
