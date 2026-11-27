@@ -879,111 +879,40 @@ ImprovedTube.transcriptButtonSelector = 'button[aria-label*="scrip"], button[ari
 										+ 'button[aria-label*="γραφ"], button[aria-label*="přep"], button[aria-label*="átir"], button[aria-label*="avsk"]';
 
 ImprovedTube.copyTranscript = function (svg, button) {
-	try {
-		svg.style.opacity = '1';
-		button.dataset.tooltip = 'FetchingTranscript';
-
-		var existingTranscriptSegments = document.querySelectorAll('ytd-transcript-segment-renderer, transcript-segment-view-model');
-		if (existingTranscriptSegments.length > 0) {
-			var transcriptText = '';
-			existingTranscriptSegments.forEach(function (segment) {
-				var textElement = segment.querySelector('.segment-text, .ytAttributedStringHost');
-				if (textElement) {
-					transcriptText += textElement.textContent.trim() + ' ';
-				}
-			});
-
-			transcriptText = transcriptText.trim();
-			if (transcriptText) {
-				navigator.clipboard.writeText(transcriptText);
-				button.dataset.tooltip = 'Copied!';
-				setTimeout(function () {
-					button.dataset.tooltip = 'CopyTranscript';
-					svg.style.opacity = '.5';
-				}, 1000);
-				return;
-			}
-		}
-		var transcriptButtonSelector = ImprovedTube.transcriptButtonSelector;
-		var transcriptButton = document.querySelector(transcriptButtonSelector) || document.querySelector('ytd-video-description-transcript-section-renderer button');
-
-		if (!transcriptButton) {
-			var moreActionsButton = document.querySelector('#description ytd-text-inline-expander #expand, #description tp-yt-paper-button#expand');
-			if (moreActionsButton && !moreActionsButton.hasAttribute('hidden')) {
-				moreActionsButton.click();
-				setTimeout(function () {
-					transcriptButton = document.querySelector(transcriptButtonSelector) || 	document.querySelector('ytd-video-description-transcript-section-renderer button');
-					if (transcriptButton) {
-						transcriptButton.click();
-						ImprovedTube.waitForTranscriptAndCopy(svg, button);
-					} else {
-						throw new Error('Transcript button not found');
-					}
-				}, 500);
-				return;
-			} else {
-				throw new Error('Transcript not available for this video');
-			}
-		}
-
-		transcriptButton.click();
-		ImprovedTube.waitForTranscriptAndCopy(svg, button);
-
-	} catch (error) {
-		console.error('ImprovedTube: Failed to copy transcript:', error);
-		button.dataset.tooltip = 'TranscriptError';
+	var resetButton = function (delay) {
 		setTimeout(function () {
 			button.dataset.tooltip = 'CopyTranscript';
 			svg.style.opacity = '.5';
-		}, 2000);
-	}
-};
+		}, delay);
+	};
 
-ImprovedTube.waitForTranscriptAndCopy = function (svg, button) {
-	var attempts = 0;
-	var maxAttempts = 20;
+	svg.style.opacity = '1';
+	button.dataset.tooltip = 'FetchingTranscript';
 
-	var checkInterval = setInterval(function () {
-		attempts++;
-
-		var transcriptSegments = document.querySelectorAll('ytd-transcript-segment-renderer, transcript-segment-view-model');
-
-		if (transcriptSegments.length > 0) {
-			clearInterval(checkInterval);
-
-			var transcriptText = '';
-
-			transcriptSegments.forEach(function (segment) {
-				var textElement = segment.querySelector('.segment-text, .ytAttributedStringHost');
-				if (textElement) {
-					transcriptText += textElement.textContent.trim() + ' ';
-				}
-			});
-
-			transcriptText = transcriptText.trim();
-
-			if (transcriptText) {
-				navigator.clipboard.writeText(transcriptText);
-				button.dataset.tooltip = 'Copied!';
-				setTimeout(function () {
-					button.dataset.tooltip = 'CopyTranscript';
-					svg.style.opacity = '.5';
-					// Close transcript panel
-					ImprovedTube.closeTranscriptPanel();
-				}, 1000);
-			} else {
-				throw new Error('Transcript is empty');
+	ImprovedTube.getTranscriptSegments(function (segments, openedPanel) {
+		var transcriptText = segments.map(function (segment) { return segment.text; }).join(' ');
+		var onCopied = function () {
+			button.dataset.tooltip = 'Copied!';
+			resetButton(1000);
+			if (openedPanel) {
+				setTimeout(ImprovedTube.closeTranscriptPanel, 1000);
 			}
-		} else if (attempts >= maxAttempts) {
-			clearInterval(checkInterval);
-			console.error('ImprovedTube: Timeout waiting for transcript');
+		};
+		var onCopyFailed = function (error) {
+			console.error('ImprovedTube: Failed to copy transcript:', error);
 			button.dataset.tooltip = 'TranscriptError';
-			setTimeout(function () {
-				button.dataset.tooltip = 'CopyTranscript';
-				svg.style.opacity = '.5';
-			}, 2000);
+			resetButton(2000);
+		};
+		try {
+			navigator.clipboard.writeText(transcriptText).then(onCopied, onCopyFailed);
+		} catch (error) {
+			onCopyFailed(error);
 		}
-	}, 250);
+	}, function () {
+		console.error('ImprovedTube: Transcript not available for this video');
+		button.dataset.tooltip = 'TranscriptError';
+		resetButton(2000);
+	});
 };
 
 ImprovedTube.transcriptSegmentsToText = function (segments) {
@@ -1031,7 +960,30 @@ ImprovedTube.getTranscriptSegments = function (onReady, onError) {
 	}
 
 	var findTranscriptButton = function () {
-		return document.querySelector(ImprovedTube.transcriptButtonSelector) || document.querySelector('ytd-video-description-transcript-section-renderer button');
+		// Prefer the dedicated "Show transcript" button in the description. The translated aria-label
+		// fallback must skip unrelated matches such as "Description" and ImprovedTube's own buttons,
+		// otherwise the wrong button gets clicked and the transcript never loads.
+		var sectionButton = document.querySelector('ytd-video-description-transcript-section-renderer button');
+		if (sectionButton) {
+			return sectionButton;
+		}
+		var candidates = document.querySelectorAll(ImprovedTube.transcriptButtonSelector);
+		for (var i = 0; i < candidates.length; i++) {
+			var label = (candidates[i].getAttribute('aria-label') || '').toLowerCase();
+			if (!candidates[i].classList.contains('improvedtube-player-button') && label.indexOf('descrip') === -1) {
+				return candidates[i];
+			}
+		}
+		return null;
+	};
+	// Fallback for layouts without a usable button: reveal YouTube's transcript engagement panel directly
+	var expandTranscriptPanel = function () {
+		var panel = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id*="transcript"]');
+		if (!panel) {
+			return false;
+		}
+		panel.setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED');
+		return true;
 	};
 	var waitForSegments = function () {
 		var attempts = 0;
@@ -1041,7 +993,8 @@ ImprovedTube.getTranscriptSegments = function (onReady, onError) {
 			if (found.length > 0) {
 				clearInterval(checkInterval);
 				onReady(found, true);
-			} else if (attempts >= 20) {
+			} else if (attempts >= 60) {
+				// Long transcripts can take several seconds to load
 				clearInterval(checkInterval);
 				onError();
 			}
@@ -1049,11 +1002,12 @@ ImprovedTube.getTranscriptSegments = function (onReady, onError) {
 	};
 	var openTranscript = function () {
 		var transcriptButton = findTranscriptButton();
-		if (!transcriptButton) {
+		if (transcriptButton) {
+			transcriptButton.click();
+		} else if (!expandTranscriptPanel()) {
 			onError();
 			return;
 		}
-		transcriptButton.click();
 		waitForSegments();
 	};
 
@@ -1066,7 +1020,7 @@ ImprovedTube.getTranscriptSegments = function (onReady, onError) {
 		moreActionsButton.click();
 		setTimeout(openTranscript, 500);
 	} else {
-		onError();
+		openTranscript();
 	}
 };
 
